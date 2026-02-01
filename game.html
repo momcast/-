@@ -3,19 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Space Survival</title>
+    <title>도서관 대작전: 로컬 이미지 에디션</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
         body {
             margin: 0;
             overflow: hidden;
             background-color: #000;
             touch-action: none;
             font-family: 'Pretendard', sans-serif;
+            user-select: none;
         }
-        canvas {
-            display: block;
-        }
+        canvas { display: block; margin: 0 auto; background: #1e140a; }
+        
         #ui-layer {
             position: absolute;
             top: 0;
@@ -23,22 +24,88 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
         }
-        .interactive {
+        
+        .interactive { pointer-events: auto; }
+        
+        .mission-panel {
+            position: absolute;
+            top: 35%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.95);
+            padding: 20px;
+            border-radius: 30px;
+            border: 2px solid rgba(255,255,255,0.2);
+            color: white;
+            display: none;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+            width: 85%;
+            max-width: 280px;
+            z-index: 100;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 25px;
+            pointer-events: none;
+        }
+
+        #joystick-base {
+            width: 90px;
+            height: 90px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            position: relative;
             pointer-events: auto;
         }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+        #joystick-stick {
+            width: 38px;
+            height: 38px;
+            background: #fff;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
-        .btn-pulse {
-            animation: pulse 2s infinite;
+
+        .action-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            pointer-events: auto;
         }
+        .btn-circle {
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.15);
+            border: 2px solid white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            backdrop-filter: blur(5px);
+            transition: transform 0.1s;
+        }
+        .btn-circle:active { transform: scale(0.9); background: rgba(255,255,255,0.3); }
+
+        @keyframes slurp {
+            0% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-20px) scale(1.15); }
+            100% { transform: translateY(0) scale(1); }
+        }
+        .slurp-anim { animation: slurp 0.2s ease-out; }
     </style>
 </head>
 <body>
@@ -46,242 +113,311 @@
     <canvas id="gameCanvas"></canvas>
 
     <div id="ui-layer">
-        <!-- 점수 표시 -->
-        <div id="score-board" class="absolute top-5 left-5 text-2xl font-bold opacity-80">
-            점수: <span id="current-score">0</span>
+        <!-- 상단 정보 -->
+        <div class="p-4 flex justify-between items-start w-full">
+            <div class="flex gap-2">
+                <div class="bg-black/80 backdrop-blur-md p-2 rounded-xl border border-white/10 text-white min-w-[60px] text-center">
+                    <div class="text-[8px] text-gray-400 font-bold uppercase">Stage</div>
+                    <div id="level-val" class="text-lg font-black text-yellow-400">1</div>
+                </div>
+                <div class="bg-black/80 backdrop-blur-md p-2 rounded-xl border border-white/10 text-white min-w-[60px] text-center">
+                    <div class="text-[8px] text-gray-400 font-bold uppercase">Time</div>
+                    <div id="time-val" class="text-lg font-black text-red-500">70</div>
+                </div>
+            </div>
+            
+            <div class="bg-black/80 backdrop-blur-md p-2 rounded-xl border border-white/10 text-white flex gap-3">
+                <div id="m-ramen" class="text-[9px] flex items-center gap-1 opacity-30">🍜 <span class="chk"></span></div>
+                <div id="m-phone" class="text-[9px] flex items-center gap-1 opacity-30">📱 <span class="chk"></span></div>
+                <div id="m-chat" class="text-[9px] flex items-center gap-1 opacity-30">💬 <span class="chk"></span></div>
+            </div>
         </div>
 
-        <!-- 시작 화면 -->
-        <div id="start-screen" class="flex flex-col items-center bg-black/60 p-10 rounded-3xl backdrop-blur-md border border-white/20">
-            <h1 class="text-5xl font-black mb-4 tracking-tighter">SPACE SURVIVAL</h1>
-            <p class="text-gray-300 mb-8 text-center">운석을 피해 최대한 오래 살아남으세요!<br>(마우스 또는 터치로 이동)</p>
-            <button id="start-btn" class="interactive btn-pulse bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-full font-bold text-xl transition-all shadow-lg shadow-indigo-500/50">
-                게임 시작
-            </button>
+        <div id="ramen-pop" class="mission-panel">
+            <div id="ramen-icon" class="text-6xl mb-4">🍜</div>
+            <p class="text-sm font-bold mb-3">오른쪽 버튼 연타!</p>
+            <div class="w-full h-2.5 bg-gray-800 rounded-full overflow-hidden">
+                <div id="ramen-bar" class="h-full bg-yellow-400" style="width: 0%"></div>
+            </div>
         </div>
 
-        <!-- 게임 오버 화면 -->
-        <div id="game-over-screen" class="hidden flex flex-col items-center bg-black/80 p-10 rounded-3xl backdrop-blur-md border border-red-500/30">
-            <h2 class="text-4xl font-bold text-red-500 mb-2">GAME OVER</h2>
-            <p class="text-xl mb-6">최종 점수: <span id="final-score">0</span></p>
-            <button id="restart-btn" class="interactive bg-white text-black px-8 py-3 rounded-full font-bold text-xl hover:bg-gray-200 transition-all">
-                다시 시도
-            </button>
+        <div id="phone-pop" class="mission-panel">
+            <div class="text-6xl mb-3">📱</div>
+            <p class="text-sm font-bold mb-1">엄마 안 볼 때 버튼 꾹!</p>
+            <div class="w-full h-7 bg-gray-800 rounded-xl relative overflow-hidden mt-3">
+                <div id="phone-bar" class="h-full bg-blue-500" style="width: 0%"></div>
+                <div id="phone-txt" class="absolute inset-0 flex items-center justify-center text-[10px] font-bold">0%</div>
+            </div>
+        </div>
+
+        <!-- 조작 인터페이스 -->
+        <div id="controls">
+            <div id="joystick-base" class="interactive">
+                <div id="joystick-stick"></div>
+            </div>
+            <div class="action-btns interactive">
+                <div id="btn-action" class="btn-circle hidden">🍜</div>
+                <div id="btn-phone" class="btn-circle hidden">📱</div>
+            </div>
+        </div>
+
+        <div id="msg-center" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white font-black text-5xl pointer-events-none opacity-0 transition-all scale-150">
+            걸렸다!
+        </div>
+
+        <!-- 시작 모달 -->
+        <div id="start-modal" class="absolute inset-0 flex items-center justify-center bg-black/95 backdrop-blur-xl interactive z-[200]">
+            <div class="bg-zinc-900 p-8 rounded-[40px] border border-white/10 text-white text-center w-[85%] max-w-sm shadow-2xl">
+                <div id="mom-preview-container" class="w-32 h-32 mx-auto mb-6 rounded-full border-4 border-red-600 overflow-hidden bg-black flex items-center justify-center shadow-[0_0_20px_rgba(255,0,0,0.5)]">
+                    <div id="loading-status" class="text-[10px] text-gray-500 text-center">이미지<br>불러오는 중...</div>
+                </div>
+                <h1 class="text-3xl font-black mb-3">도서관 대작전</h1>
+                <p class="text-gray-400 mb-8 text-[11px] leading-relaxed">
+                    엄마의 눈이 <span class="text-red-500 font-bold">빨간색(REC)</span>일 땐 멈추세요!<br>
+                    조이스틱으로 천천히 이동하세요.
+                </p>
+                <button id="btn-start" class="w-full bg-white/20 text-white py-4 rounded-full font-bold text-lg pointer-events-none transition-all">
+                    이미지 로딩 대기 중...
+                </button>
+            </div>
         </div>
     </div>
 
     <script>
+        /**
+         * 상대 경로 설정 (같은 폴더에 있을 때)
+         */
+        const URL_MOM = "mom.png"; 
+        const URL_KID = "kid.png";
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const scoreElement = document.getElementById('current-score');
-        const finalScoreElement = document.getElementById('final-score');
-        const startScreen = document.getElementById('start-screen');
-        const gameOverScreen = document.getElementById('game-over-screen');
-        const startBtn = document.getElementById('start-btn');
-        const restartBtn = document.getElementById('restart-btn');
+        
+        const imgMom = new Image();
+        const imgKid = new Image();
+        let momOk = false, kidOk = false;
 
-        // 게임 상태
-        let gameState = 'START'; // START, PLAYING, GAMEOVER
-        let score = 0;
-        let animationId;
-        let enemies = [];
-        let particles = [];
-        let lastEnemyTime = 0;
-        let enemySpawnInterval = 1000;
+        function checkReady() {
+            if (momOk && kidOk) {
+                const btn = document.getElementById('btn-start');
+                btn.classList.remove('bg-white/20', 'pointer-events-none');
+                btn.classList.add('bg-red-600', 'interactive');
+                btn.innerText = "장난 시작하기";
+                drawMomPreview();
+            }
+        }
 
-        // 플레이어 설정
-        const player = {
-            x: 0,
-            y: 0,
-            size: 40,
-            targetX: 0,
-            targetY: 0,
-            emoji: '🚀'
+        imgMom.onload = () => { momOk = true; checkReady(); };
+        imgKid.onload = () => { kidOk = true; checkReady(); };
+        
+        // 이미지 로드 시도
+        imgMom.src = URL_MOM;
+        imgKid.src = URL_KID;
+
+        const momCctvCanvas = document.createElement('canvas');
+        momCctvCanvas.width = 150;
+        momCctvCanvas.height = 150;
+        const mcCtx = momCctvCanvas.getContext('2d');
+
+        function drawMomPreview() {
+            const container = document.getElementById('mom-preview-container');
+            renderMomToCanvas(true);
+            const pCanvas = document.createElement('canvas');
+            pCanvas.width = 120; pCanvas.height = 120;
+            pCanvas.getContext('2d').drawImage(momCctvCanvas, 0, 0, 120, 120);
+            container.innerHTML = ''; container.appendChild(pCanvas);
+        }
+
+        function renderMomToCanvas(angry = false) {
+            mcCtx.clearRect(0,0,150,150);
+            mcCtx.fillStyle = '#111';
+            mcCtx.beginPath(); mcCtx.arc(75, 75, 75, 0, Math.PI*2); mcCtx.fill();
+
+            if (momOk) {
+                mcCtx.save();
+                mcCtx.beginPath(); mcCtx.arc(75, 75, 70, 0, Math.PI * 2); mcCtx.clip();
+                const scale = Math.max(150 / imgMom.width, 150 / imgMom.height);
+                mcCtx.drawImage(imgMom, (150 - imgMom.width*scale)/2, (150 - imgMom.height*scale)/2, imgMom.width*scale, imgMom.height*scale);
+                mcCtx.restore();
+            }
+
+            if (angry) {
+                mcCtx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+                mcCtx.beginPath(); mcCtx.arc(75, 75, 70, 0, Math.PI*2); mcCtx.fill();
+                mcCtx.fillStyle = '#f00'; mcCtx.font = 'bold 14px Arial'; mcCtx.fillText('● REC', 95, 35);
+            }
+
+            mcCtx.strokeStyle = angry ? '#f00' : '#444'; mcCtx.lineWidth = 6;
+            mcCtx.beginPath(); mcCtx.arc(75, 75, 72, 0, Math.PI*2); mcCtx.stroke();
+        }
+
+        let level = 1, state = 'STOPPED', time = 70;
+        const missions = { ramen: { done: false, prog: 0 }, phone: { done: false, prog: 0 }, chat: { done: false, prog: 0 } };
+        const player = { x: 0, y: 0, w: 42, h: 76, speed: 1.4, vx: 0, vy: 0, moving: false };
+        const mom = { x: 0, y: 70, ang: 0, tAng: 0, state: 'IDLE', timer: 0, mode: 'LEFT', view: Math.PI / 2.3, size: 85 };
+        const npc = { x: 0, y: 0 };
+        let dots = [];
+        const zones = { ramen: { x: 0, y: 0, w: 90, h: 90 }, phone: { x: 0, y: 0, w: 90, h: 90 }, chat: { x: 0, y: 0, w: 110, h: 110 } };
+        
+        const joyBase = document.getElementById('joystick-base');
+        const joyStick = document.getElementById('joystick-stick');
+        let joyDown = false;
+
+        function handleJoy(e) {
+            if (!joyDown) return;
+            const r = joyBase.getBoundingClientRect();
+            const t = e.touches ? e.touches[0] : e;
+            let dx = t.clientX - (r.left + 45), dy = t.clientY - (r.top + 45);
+            const dist = Math.hypot(dx, dy);
+            if (dist > 35) { dx = (dx/dist)*35; dy = (dy/dist)*35; }
+            joyStick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+            player.vx = dx/35; player.vy = dy/35;
+        }
+        joyBase.onmousedown = joyBase.ontouchstart = (e) => { joyDown = true; handleJoy(e); };
+        window.onmousemove = window.ontouchmove = handleJoy;
+        window.onmouseup = window.ontouchend = () => { joyDown = false; joyStick.style.transform = 'translate(-50%,-50%)'; player.vx = 0; player.vy = 0; };
+
+        let phoneHold = false;
+        document.getElementById('btn-phone').onmousedown = document.getElementById('btn-phone').ontouchstart = () => phoneHold = true;
+        document.getElementById('btn-phone').onmouseup = document.getElementById('btn-phone').ontouchend = () => phoneHold = false;
+
+        document.getElementById('btn-action').onclick = () => {
+            if (state !== 'PLAYING') return;
+            if (isInZone(player, zones.ramen) && !missions.ramen.done) {
+                if (mom.state === 'WATCHING') { caught("엄마가 지켜보고 있었어!"); return; }
+                missions.ramen.prog += 8;
+                document.getElementById('ramen-icon').classList.add('slurp-anim');
+                setTimeout(() => document.getElementById('ramen-icon').classList.remove('slurp-anim'), 200);
+                for(let i=0; i<3; i++) spawnP(player.x, player.y - 30, '🍜');
+                if (missions.ramen.prog >= 100) { missions.ramen.done = true; updateUI(); }
+            }
         };
 
-        // 캔버스 크기 조절
+        function spawnP(x, y, e) { dots.push({ x, y, e, vy: -2, a: 1, vx: (Math.random()-0.5)*2 }); }
+        
         function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            player.x = canvas.width / 2;
-            player.y = canvas.height * 0.8;
-            player.targetX = player.x;
-            player.targetY = player.y;
+            const w = window.innerWidth, h = window.innerHeight;
+            canvas.width = w; canvas.height = h;
+            zones.ramen.x = 30; zones.ramen.y = h - 380;
+            zones.phone.x = w - 120; zones.phone.y = h - 380;
+            npc.x = w / 2; npc.y = h / 2 - 40;
+            zones.chat.x = npc.x - 55; zones.chat.y = npc.y - 55;
+            player.x = w / 2; player.y = h - 140; 
+            mom.x = w / 2;
+        }
+        window.onresize = resize; resize();
+
+        function isInZone(p, z) { return p.x > z.x && p.x < z.x + z.w && p.y > z.y && p.y < z.y + z.h; }
+        
+        function updateUI() {
+            const r = document.getElementById('m-ramen'), p = document.getElementById('m-phone'), c = document.getElementById('m-chat');
+            r.style.opacity = missions.ramen.done ? "1" : "0.3";
+            p.style.opacity = missions.phone.done ? "1" : "0.3";
+            c.style.opacity = missions.chat.done ? "1" : "0.3";
+            if(missions.ramen.done) r.querySelector('.chk').innerText = '✅';
+            if(missions.phone.done) p.querySelector('.chk').innerText = '✅';
+            if(missions.chat.done) c.querySelector('.chk').innerText = '✅';
         }
 
-        window.addEventListener('resize', resize);
-        resize();
-
-        // 입력 처리 (마우스 & 터치)
-        function updatePosition(e) {
-            if (gameState !== 'PLAYING') return;
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            player.targetX = clientX;
-            player.targetY = clientY;
+        function caught(r) { 
+            const msg = document.getElementById('msg-center');
+            msg.style.opacity = "1"; msg.style.scale = "1";
+            setTimeout(() => { msg.style.opacity = "0"; msg.style.scale = "1.5"; finish(false, r); }, 1200);
         }
 
-        window.addEventListener('mousemove', updatePosition);
-        window.addEventListener('touchmove', updatePosition);
-
-        // 적(운석) 클래스
-        class Enemy {
-            constructor() {
-                this.size = Math.random() * 40 + 20;
-                this.x = Math.random() * canvas.width;
-                this.y = -this.size;
-                this.speed = Math.random() * 3 + 2 + (score / 1000);
-                this.rotation = 0;
-                this.rotationSpeed = (Math.random() - 0.5) * 0.1;
-                this.emoji = ['☄️', '🌑', '👾', '💥'][Math.floor(Math.random() * 4)];
-            }
-
-            update() {
-                this.y += this.speed;
-                this.rotation += this.rotationSpeed;
-            }
-
-            draw() {
-                ctx.save();
-                ctx.translate(this.x, this.y);
-                ctx.rotate(this.rotation);
-                ctx.font = `${this.size}px Arial`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(this.emoji, 0, 0);
-                ctx.restore();
-            }
+        function start() {
+            state = 'PLAYING'; document.getElementById('start-modal').classList.add('hidden');
+            time = 70; missions.ramen.prog = 0; missions.phone.prog = 0; missions.chat.prog = 0;
+            missions.ramen.done = false; missions.phone.done = false; missions.chat.done = false;
+            player.x = canvas.width/2; player.y = canvas.height-140;
+            updateUI();
+            if(window.timer) clearInterval(window.timer);
+            window.timer = setInterval(() => { if(state==='PLAYING'){time--; document.getElementById('time-val').innerText=time; if(time<=0)finish(false,"시간이 다 됐어요!");}}, 1000);
+            requestAnimationFrame(tick);
         }
 
-        // 파티클(효과음 대신 시각 효과)
-        class Particle {
-            constructor(x, y, color) {
-                this.x = x;
-                this.y = y;
-                this.color = color;
-                this.size = Math.random() * 5 + 2;
-                this.speedX = (Math.random() - 0.5) * 10;
-                this.speedY = (Math.random() - 0.5) * 10;
-                this.life = 1.0;
-            }
-            update() {
-                this.x += this.speedX;
-                this.y += this.speedY;
-                this.life -= 0.02;
-            }
-            draw() {
-                ctx.globalAlpha = this.life;
-                ctx.fillStyle = this.color;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.globalAlpha = 1;
-            }
+        function finish(ok, r) {
+            state = 'STOPPED'; clearInterval(window.timer);
+            document.getElementById('start-modal').classList.remove('hidden');
+            document.querySelector('#start-modal h1').innerText = ok ? "탈출 성공!" : "실패!";
+            document.querySelector('#start-modal p').innerText = r;
+            const btn = document.getElementById('btn-start'); btn.innerText = ok ? "다음 레벨" : "다시 도전";
+            btn.onclick = ok ? () => { level++; start(); } : start;
         }
 
-        function initGame() {
-            score = 0;
-            enemies = [];
-            particles = [];
-            enemySpawnInterval = 1000;
-            scoreElement.innerText = '0';
-            gameState = 'PLAYING';
-            startScreen.classList.add('hidden');
-            gameOverScreen.classList.add('hidden');
-            animate();
+        function tick() { if(state!=='PLAYING') return; update(); draw(); requestAnimationFrame(tick); }
+
+        function update() {
+            const now = Date.now();
+            player.moving = (joyDown || Math.abs(player.vx)>0 || Math.abs(player.vy)>0);
+            player.x += player.vx * player.speed; player.y += player.vy * player.speed;
+
+            const speedFactor = 1 + level * 0.15;
+            if(mom.state === 'IDLE') {
+                mom.tAng = (mom.mode === 'LEFT') ? -Math.PI/2.5 : Math.PI/2.5;
+                if(now - mom.timer > 4000/speedFactor) { mom.state = 'WARNING'; mom.timer = now; }
+                if(Math.random()<0.015) mom.mode = mom.mode === 'LEFT' ? 'RIGHT' : 'LEFT';
+            } else if(mom.state === 'WARNING') { mom.tAng = 0; if(now - mom.timer > 1500/speedFactor) { mom.state = 'WATCHING'; mom.timer = now; } }
+            else if(mom.state === 'WATCHING') { mom.tAng = 0; if(now - mom.timer > 2200+level*100) { mom.state = 'IDLE'; mom.timer = now; } }
+            mom.ang += (mom.tAng - mom.ang) * 0.07;
+
+            player.x = Math.max(20, Math.min(canvas.width-20, player.x));
+            player.y = Math.max(20, Math.min(canvas.height-20, player.y));
+
+            if(mom.state === 'WATCHING' && (player.moving || (phoneHold && isInZone(player, zones.phone)))) { caught("들켜버렸어요!"); return; }
+
+            const rIn = isInZone(player, zones.ramen) && !missions.ramen.done;
+            const pIn = isInZone(player, zones.phone) && !missions.phone.done;
+            document.getElementById('ramen-pop').style.display = rIn ? 'block' : 'none';
+            document.getElementById('phone-pop').style.display = pIn ? 'block' : 'none';
+            document.getElementById('btn-action').classList.toggle('hidden', !rIn);
+            document.getElementById('btn-phone').classList.toggle('hidden', !pIn);
+            document.getElementById('ramen-bar').style.width = missions.ramen.prog + '%';
+            document.getElementById('phone-bar').style.width = missions.phone.prog + '%';
+            document.getElementById('phone-txt').innerText = Math.floor(missions.phone.prog) + '%';
+
+            if(pIn && phoneHold) {
+                missions.phone.prog += 0.5;
+                if(Math.random()>0.9) spawnP(player.x, player.y-25, '📱');
+                if(missions.phone.prog >= 100) { missions.phone.done = true; updateUI(); }
+            }
+            if(isInZone(player, zones.chat) && !missions.chat.done) {
+                missions.chat.prog += 0.35;
+                if(Math.random()>0.94) spawnP(npc.x, npc.y-30, '💬');
+                if(missions.chat.prog >= 100) { missions.chat.done = true; updateUI(); }
+            }
+            dots.forEach((p, i) => { p.y += p.vy; p.x += p.vx; p.a -= 0.025; if(p.a <= 0) dots.splice(i, 1); });
+            if(missions.ramen.done && missions.phone.done && missions.chat.done) { if(player.y < 100 && Math.abs(player.x - canvas.width/2) < 40) finish(true, "축하합니다! 무사히 탈출했어요!"); }
         }
 
-        function gameOver() {
-            gameState = 'GAMEOVER';
-            cancelAnimationFrame(animationId);
-            finalScoreElement.innerText = Math.floor(score);
-            gameOverScreen.classList.remove('hidden');
+        function draw() {
+            ctx.fillStyle = '#1e140a'; ctx.fillRect(0,0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#2d1e12'; ctx.lineWidth = 1; for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke(); }
             
-            // 폭발 효과
-            for(let i=0; i<30; i++) {
-                particles.push(new Particle(player.x, player.y, '#ff5500'));
-            }
+            const rz = zones.ramen; ctx.font = '30px Arial'; ctx.textAlign = 'center'; ctx.fillText('🍜', rz.x + rz.w/2, rz.y + rz.h/2 + 5);
+            const pz = zones.phone; ctx.fillText('📱', pz.x + pz.w/2, pz.y + pz.h/2 + 5);
+            ctx.font = '28px Arial'; ctx.fillText('👧', npc.x, npc.y);
+            if(!missions.chat.done) { ctx.strokeStyle = '#ec4899'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(npc.x, npc.y, 35, -Math.PI/2, -Math.PI/2 + (Math.PI*2 * missions.chat.prog/100)); ctx.stroke(); }
+            dots.forEach(d => { ctx.globalAlpha = d.a; ctx.font = '20px Arial'; ctx.fillText(d.e, d.x, d.y); }); ctx.globalAlpha = 1;
+
+            ctx.save(); ctx.translate(mom.x, mom.y); ctx.rotate(mom.ang + Math.PI/2);
+            let vCol = 'rgba(255, 255, 255, 0.03)'; if(mom.state === 'WARNING') vCol = 'rgba(255, 165, 0, 0.12)'; if(mom.state === 'WATCHING') vCol = 'rgba(255, 0, 0, 0.22)';
+            ctx.fillStyle = vCol; ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0, canvas.height, -mom.view/2, mom.view/2); ctx.fill(); ctx.restore();
+            
+            if(missions.ramen.done && missions.phone.done && missions.chat.done) { ctx.font = '50px Arial'; ctx.fillText('🚪', canvas.width/2, 80); }
+            
+            // 주인공 (로컬 이미지 사용)
+            if (kidOk) {
+                ctx.save(); ctx.translate(player.x, player.y); if (player.vx < -0.1) ctx.scale(-1, 1);
+                ctx.drawImage(imgKid, -player.w/2, -player.h/2, player.w, player.h); ctx.restore();
+            } else { ctx.font = '32px Arial'; ctx.fillText('👦', player.x, player.y); }
+            
+            renderMomToCanvas(mom.state === 'WATCHING');
+            ctx.save(); ctx.translate(mom.x, mom.y); ctx.rotate(mom.ang);
+            ctx.drawImage(momCctvCanvas, -mom.size/2, -mom.size/2, mom.size, mom.size); ctx.restore();
         }
 
-        function animate(timestamp = 0) {
-            if (gameState !== 'PLAYING') {
-                // 게임 오버 상태에서도 파티클은 그려줌
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                particles.forEach((p, i) => {
-                    p.update();
-                    p.draw();
-                    if(p.life <= 0) particles.splice(i, 1);
-                });
-                if(gameState === 'GAMEOVER' && particles.length > 0) {
-                    animationId = requestAnimationFrame(animate);
-                }
-                return;
-            }
-
-            ctx.fillStyle = 'rgba(10, 10, 25, 0.4)'; // 잔상 효과
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // 별 배경 (단순하게)
-            if(Math.random() > 0.9) {
-                ctx.fillStyle = 'white';
-                ctx.fillRect(Math.random() * canvas.width, 0, 2, 2);
-            }
-
-            // 플레이어 이동 (부드럽게)
-            player.x += (player.targetX - player.x) * 0.15;
-            player.y += (player.targetY - player.y) * 0.15;
-
-            // 플레이어 그리기
-            ctx.font = `${player.size}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(player.emoji, player.x, player.y);
-
-            // 적 생성
-            if (timestamp - lastEnemyTime > enemySpawnInterval) {
-                enemies.push(new Enemy());
-                lastEnemyTime = timestamp;
-                // 난이도 상승
-                enemySpawnInterval = Math.max(200, 1000 - (score / 50));
-            }
-
-            // 적 업데이트 및 그리기
-            enemies.forEach((enemy, index) => {
-                enemy.update();
-                enemy.draw();
-
-                // 화면 밖으로 나가면 제거
-                if (enemy.y > canvas.height + enemy.size) {
-                    enemies.splice(index, 1);
-                    score += 10;
-                    scoreElement.innerText = Math.floor(score);
-                }
-
-                // 충돌 검사
-                const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
-                if (dist < (player.size/2 + enemy.size/2) - 10) {
-                    gameOver();
-                }
-            });
-
-            // 파티클 처리
-            particles.forEach((p, i) => {
-                p.update();
-                p.draw();
-                if(p.life <= 0) particles.splice(i, 1);
-            });
-
-            animationId = requestAnimationFrame(animate);
-        }
-
-        startBtn.addEventListener('click', initGame);
-        restartBtn.addEventListener('click', initGame);
-
-        // 초기 화면 그리기
-        ctx.fillStyle = '#0a0a19';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
+        document.getElementById('btn-start').onclick = start;
     </script>
 </body>
 </html>
