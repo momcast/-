@@ -3,20 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>도서관 대작전: 실사 이미지 로딩 최적화</title>
+    <title>Space Survival</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
         body {
             margin: 0;
             overflow: hidden;
             background-color: #000;
             touch-action: none;
             font-family: 'Pretendard', sans-serif;
-            user-select: none;
         }
-        canvas { display: block; margin: 0 auto; background: #1e140a; }
-        
+        canvas {
+            display: block;
+        }
         #ui-layer {
             position: absolute;
             top: 0;
@@ -24,88 +23,22 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
-        }
-        
-        .interactive { pointer-events: auto; }
-        
-        .mission-panel {
-            position: absolute;
-            top: 35%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.95);
-            padding: 20px;
-            border-radius: 30px;
-            border: 2px solid rgba(255,255,255,0.2);
-            color: white;
-            display: none;
-            text-align: center;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
-            width: 85%;
-            max-width: 280px;
-            z-index: 100;
-        }
-
-        #controls {
-            position: absolute;
-            bottom: 30px;
-            left: 0;
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 25px;
-            pointer-events: none;
-        }
-
-        #joystick-base {
-            width: 100px;
-            height: 100px;
-            background: rgba(255,255,255,0.1);
-            border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            position: relative;
-            pointer-events: auto;
-        }
-        #joystick-stick {
-            width: 40px;
-            height: 40px;
-            background: #fff;
-            border-radius: 50%;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-        }
-
-        .action-btns {
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        .interactive {
             pointer-events: auto;
         }
-        .btn-circle {
-            width: 65px;
-            height: 65px;
-            background: rgba(255,255,255,0.15);
-            border: 2px solid white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.8rem;
-            backdrop-filter: blur(5px);
-            transition: transform 0.1s;
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
-        .btn-circle:active { transform: scale(0.9); background: rgba(255,255,255,0.3); }
-
-        @keyframes slurp {
-            0% { transform: translateY(0) scale(1); }
-            50% { transform: translateY(-20px) scale(1.15); }
-            100% { transform: translateY(0) scale(1); }
+        .btn-pulse {
+            animation: pulse 2s infinite;
         }
-        .slurp-anim { animation: slurp 0.2s ease-out; }
     </style>
 </head>
 <body>
@@ -113,398 +46,242 @@
     <canvas id="gameCanvas"></canvas>
 
     <div id="ui-layer">
-        <!-- 상단 스탯바 -->
-        <div class="p-4 flex justify-between items-start w-full">
-            <div class="flex gap-2">
-                <div class="bg-black/80 backdrop-blur-md p-2 rounded-xl border border-white/10 text-white min-w-[60px] text-center">
-                    <div class="text-[8px] text-gray-400 font-bold">LV</div>
-                    <div id="level-val" class="text-lg font-black text-yellow-400">1</div>
-                </div>
-                <div class="bg-black/80 backdrop-blur-md p-2 rounded-xl border border-white/10 text-white min-w-[60px] text-center">
-                    <div class="text-[8px] text-gray-400 font-bold">TIME</div>
-                    <div id="time-val" class="text-lg font-black text-red-500">70</div>
-                </div>
-            </div>
-            
-            <div class="bg-black/80 backdrop-blur-md p-2 rounded-xl border border-white/10 text-white flex gap-3">
-                <div id="m-ramen" class="text-[9px] flex items-center gap-1 opacity-30">🍜 <span class="chk"></span></div>
-                <div id="m-phone" class="text-[9px] flex items-center gap-1 opacity-30">📱 <span class="chk"></span></div>
-                <div id="m-chat" class="text-[9px] flex items-center gap-1 opacity-30">💬 <span class="chk"></span></div>
-            </div>
+        <!-- 점수 표시 -->
+        <div id="score-board" class="absolute top-5 left-5 text-2xl font-bold opacity-80">
+            점수: <span id="current-score">0</span>
         </div>
 
-        <!-- 미션 팝업 -->
-        <div id="ramen-pop" class="mission-panel">
-            <div id="ramen-icon" class="text-6xl mb-4">🍜</div>
-            <p class="text-sm font-bold mb-3">오른쪽 버튼을 연타해!</p>
-            <div class="w-full h-2.5 bg-gray-800 rounded-full overflow-hidden">
-                <div id="ramen-bar" class="h-full bg-yellow-400" style="width: 0%"></div>
-            </div>
+        <!-- 시작 화면 -->
+        <div id="start-screen" class="flex flex-col items-center bg-black/60 p-10 rounded-3xl backdrop-blur-md border border-white/20">
+            <h1 class="text-5xl font-black mb-4 tracking-tighter">SPACE SURVIVAL</h1>
+            <p class="text-gray-300 mb-8 text-center">운석을 피해 최대한 오래 살아남으세요!<br>(마우스 또는 터치로 이동)</p>
+            <button id="start-btn" class="interactive btn-pulse bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-full font-bold text-xl transition-all shadow-lg shadow-indigo-500/50">
+                게임 시작
+            </button>
         </div>
 
-        <div id="phone-pop" class="mission-panel">
-            <div class="text-6xl mb-3">📱</div>
-            <p class="text-sm font-bold mb-1">엄마 안 볼 때 버튼 꾹!</p>
-            <div class="w-full h-7 bg-gray-800 rounded-xl relative overflow-hidden mt-3">
-                <div id="phone-bar" class="h-full bg-blue-500" style="width: 0%"></div>
-                <div id="phone-txt" class="absolute inset-0 flex items-center justify-center text-[10px] font-bold">0%</div>
-            </div>
-        </div>
-
-        <div id="book-pop" class="mission-panel interactive">
-            <div class="text-[10px] font-bold text-amber-800 mb-1">학습 미션</div>
-            <div id="q-txt" class="text-xl font-black mb-4">?</div>
-            <input type="text" id="q-input" class="w-full p-3 border-2 border-gray-200 rounded-2xl text-center text-lg mb-4 focus:outline-none bg-gray-50" placeholder="정답">
-            <button id="q-btn" class="w-full bg-amber-800 text-white py-3 rounded-2xl font-bold text-sm">확인</button>
-        </div>
-
-        <!-- 조작부 -->
-        <div id="controls">
-            <div id="joystick-base" class="interactive">
-                <div id="joystick-stick"></div>
-            </div>
-            <div class="action-btns interactive">
-                <div id="btn-action" class="btn-circle hidden">🍜</div>
-                <div id="btn-phone" class="btn-circle hidden">📱</div>
-            </div>
-        </div>
-
-        <!-- 중앙 메시지 -->
-        <div id="msg-center" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white font-black text-5xl pointer-events-none opacity-0 transition-all scale-150">
-            걸렸다!
-        </div>
-
-        <!-- 시작 모달 -->
-        <div id="start-modal" class="absolute inset-0 flex items-center justify-center bg-black/95 backdrop-blur-xl interactive z-[200]">
-            <div class="bg-zinc-900 p-8 rounded-[40px] border border-white/10 text-white text-center w-[85%] max-w-sm shadow-2xl">
-                <div id="mom-preview-container" class="w-32 h-32 mx-auto mb-4 rounded-full border-4 border-red-600 overflow-hidden bg-black flex items-center justify-center">
-                    <div id="loading-status" class="text-[9px] text-gray-500">이미지 준비 중...</div>
-                </div>
-                <h1 class="text-2xl font-black mb-2">도서관 대작전</h1>
-                <div id="img-load-check" class="flex justify-center gap-2 mb-4">
-                    <span id="check-mom" class="px-2 py-1 bg-red-900/50 rounded text-[9px]">엄마 사진 🔴</span>
-                    <span id="check-kid" class="px-2 py-1 bg-red-900/50 rounded text-[9px]">주인공 사진 🔴</span>
-                </div>
-                <p class="text-gray-400 mb-6 text-[10px] leading-relaxed">
-                    엄마의 눈이 <span class="text-red-500">빨간색</span>으로 변할 땐 가만히 있으세요!<br>
-                    사진이 뜨지 않으면 잠시만 기다려주세요.
-                </p>
-                <button id="btn-start" class="w-full bg-red-600/50 text-white py-4 rounded-full font-bold text-lg pointer-events-none transition-all">
-                    로딩 대기 중...
-                </button>
-            </div>
+        <!-- 게임 오버 화면 -->
+        <div id="game-over-screen" class="hidden flex flex-col items-center bg-black/80 p-10 rounded-3xl backdrop-blur-md border border-red-500/30">
+            <h2 class="text-4xl font-bold text-red-500 mb-2">GAME OVER</h2>
+            <p class="text-xl mb-6">최종 점수: <span id="final-score">0</span></p>
+            <button id="restart-btn" class="interactive bg-white text-black px-8 py-3 rounded-full font-bold text-xl hover:bg-gray-200 transition-all">
+                다시 시도
+            </button>
         </div>
     </div>
 
     <script>
-        // 구글 드라이브 이미지 URL
-        const MOM_URL = "https://drive.google.com/uc?export=view&id=1S86pifIeOImlciL9XFWvUDY4sURg9qNY";
-        const KID_URL = "https://drive.google.com/uc?export=view&id=1m9pXsCjWUJ9rb0G9x5gdO6wtgH2DY-FF";
-
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        
-        const imgMom = new Image();
-        const imgKid = new Image();
-        let momOk = false, kidOk = false;
+        const scoreElement = document.getElementById('current-score');
+        const finalScoreElement = document.getElementById('final-score');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
 
-        // CORS 정책을 위해 anonymous 설정 (구글 드라이브 공개 파일은 지원함)
-        imgMom.crossOrigin = "anonymous";
-        imgKid.crossOrigin = "anonymous";
+        // 게임 상태
+        let gameState = 'START'; // START, PLAYING, GAMEOVER
+        let score = 0;
+        let animationId;
+        let enemies = [];
+        let particles = [];
+        let lastEnemyTime = 0;
+        let enemySpawnInterval = 1000;
 
-        function checkAllLoaded() {
-            if (momOk && kidOk) {
-                const btn = document.getElementById('btn-start');
-                btn.classList.remove('bg-red-600/50', 'pointer-events-none');
-                btn.classList.add('bg-red-600', 'interactive');
-                btn.innerText = "장난 시작하기";
-                drawMomOnPreview();
-            }
-        }
-
-        imgMom.onload = () => { 
-            momOk = true; 
-            document.getElementById('check-mom').classList.replace('bg-red-900/50', 'bg-green-600');
-            document.getElementById('check-mom').innerText = "엄마 사진 ✅";
-            checkAllLoaded(); 
-        };
-        imgMom.onerror = () => { 
-            console.error("Mom image load failed");
-            // 만약 CORS 문제로 실패하면 crossOrigin 없이 다시 시도 (캔버스 드로잉은 제한됨)
-            if(imgMom.crossOrigin) {
-                imgMom.removeAttribute("crossOrigin");
-                imgMom.src = MOM_URL + "&t=" + Date.now();
-            }
+        // 플레이어 설정
+        const player = {
+            x: 0,
+            y: 0,
+            size: 40,
+            targetX: 0,
+            targetY: 0,
+            emoji: '🚀'
         };
 
-        imgKid.onload = () => { 
-            kidOk = true; 
-            document.getElementById('check-kid').classList.replace('bg-red-900/50', 'bg-green-600');
-            document.getElementById('check-kid').innerText = "주인공 사진 ✅";
-            checkAllLoaded(); 
-        };
-
-        // 이미지 로드 시작
-        imgMom.src = MOM_URL;
-        imgKid.src = KID_URL;
-
-        const momCanvas = document.createElement('canvas');
-        momCanvas.width = 150; momCanvas.height = 150;
-        const mcCtx = momCanvas.getContext('2d');
-
-        function drawMomOnPreview() {
-            const view = document.getElementById('mom-preview-container');
-            renderMomToCanvas(true);
-            const pCanvas = document.createElement('canvas');
-            pCanvas.width = 120; pCanvas.height = 120;
-            pCanvas.getContext('2d').drawImage(momCanvas, 0, 0, 120, 120);
-            view.innerHTML = ''; view.appendChild(pCanvas);
-        }
-
-        function renderMomToCanvas(angry = false) {
-            mcCtx.clearRect(0,0,150,150);
-            mcCtx.fillStyle = '#111';
-            mcCtx.beginPath(); mcCtx.arc(75, 75, 75, 0, Math.PI*2); mcCtx.fill();
-
-            if (momOk) {
-                try {
-                    mcCtx.save();
-                    mcCtx.beginPath(); mcCtx.arc(75, 75, 70, 0, Math.PI * 2); mcCtx.clip();
-                    const scale = Math.max(150 / imgMom.width, 150 / imgMom.height);
-                    mcCtx.drawImage(imgMom, (150 - imgMom.width*scale)/2, (150 - imgMom.height*scale)/2, imgMom.width*scale, imgMom.height*scale);
-                    mcCtx.restore();
-                } catch(e) {
-                    // CORS 에러 발생 시 단순 원형으로 대체
-                    mcCtx.fillStyle = '#333';
-                    mcCtx.beginPath(); mcCtx.arc(75, 75, 70, 0, Math.PI * 2); mcCtx.fill();
-                    mcCtx.fillStyle = '#fff';
-                    mcCtx.font = '10px Arial';
-                    mcCtx.textAlign = 'center';
-                    mcCtx.fillText("보안 차단됨", 75, 75);
-                }
-            }
-
-            if (angry) {
-                mcCtx.fillStyle = 'rgba(255, 0, 0, 0.3)';
-                mcCtx.beginPath(); mcCtx.arc(75, 75, 70, 0, Math.PI*2); mcCtx.fill();
-                mcCtx.fillStyle = '#f00'; mcCtx.font = 'bold 14px Arial'; mcCtx.fillText('● REC', 95, 35);
-            }
-
-            mcCtx.strokeStyle = angry ? '#f00' : '#444'; mcCtx.lineWidth = 6;
-            mcCtx.beginPath(); mcCtx.arc(75, 75, 72, 0, Math.PI*2); mcCtx.stroke();
-        }
-
-        // 게임 변수
-        let level = 1, state = 'STOPPED', time = 70;
-        const missions = { ramen: { done: false, prog: 0 }, phone: { done: false, prog: 0 }, chat: { done: false, prog: 0 } };
-        const bookQuiz = { active: false, q: '', a: '' };
-        
-        const player = { x: 0, y: 0, w: 42, h: 76, speed: 1.4, vx: 0, vy: 0, moving: false };
-        const mom = { x: 0, y: 70, ang: 0, tAng: 0, state: 'IDLE', timer: 0, mode: 'LEFT', view: Math.PI / 2.3, size: 85 };
-        const npc = { x: 0, y: 0 };
-        
-        let books = [], particles = [];
-        const zones = { ramen: { x: 0, y: 0, w: 90, h: 90 }, phone: { x: 0, y: 0, w: 90, h: 90 }, chat: { x: 0, y: 0, w: 110, h: 110 } };
-        
-        // 조이스틱
-        const joyBase = document.getElementById('joystick-base');
-        const joyStick = document.getElementById('joystick-stick');
-        let joyDown = false;
-
-        function moveJoy(e) {
-            if (!joyDown) return;
-            const r = joyBase.getBoundingClientRect();
-            const t = e.touches ? e.touches[0] : e;
-            let dx = t.clientX - (r.left + 50), dy = t.clientY - (r.top + 50);
-            const dist = Math.hypot(dx, dy);
-            if (dist > 35) { dx = (dx/dist)*35; dy = (dy/dist)*35; }
-            joyStick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-            player.vx = dx/35; player.vy = dy/35;
-        }
-        joyBase.onmousedown = joyBase.ontouchstart = (e) => { joyDown = true; moveJoy(e); };
-        window.onmousemove = window.ontouchmove = moveJoy;
-        window.onmouseup = window.ontouchend = () => { joyDown = false; joyStick.style.transform = 'translate(-50%,-50%)'; player.vx = 0; player.vy = 0; };
-
-        // 버튼
-        let phoneHold = false;
-        const btnPhone = document.getElementById('btn-phone');
-        btnPhone.onmousedown = btnPhone.ontouchstart = () => phoneHold = true;
-        btnPhone.onmouseup = btnPhone.ontouchend = () => phoneHold = false;
-
-        document.getElementById('btn-action').onclick = () => {
-            if (state !== 'PLAYING' || bookQuiz.active) return;
-            if (isInZone(player, zones.ramen) && !missions.ramen.done) {
-                if (mom.state === 'WATCHING') { caught("라면 먹다 들켰다!"); return; }
-                missions.ramen.prog += 8;
-                document.getElementById('ramen-icon').classList.add('slurp-anim');
-                setTimeout(() => document.getElementById('ramen-icon').classList.remove('slurp-anim'), 200);
-                for(let i=0; i<3; i++) spawnP(player.x, player.y - 30, '🍜');
-                if (missions.ramen.prog >= 100) { missions.ramen.done = true; updateUI(); }
-            }
-        };
-
-        function spawnP(x, y, e) { particles.push({ x, y, e, vy: -2, a: 1, vx: (Math.random()-0.5)*2 }); }
-        
+        // 캔버스 크기 조절
         function resize() {
-            const w = window.innerWidth, h = window.innerHeight;
-            canvas.width = w; canvas.height = h;
-            zones.ramen.x = 30; zones.ramen.y = h - 380;
-            zones.phone.x = w - 120; zones.phone.y = h - 380;
-            npc.x = w / 2; npc.y = h / 2 - 40;
-            zones.chat.x = npc.x - 55; zones.chat.y = npc.y - 55;
-            player.x = w / 2; player.y = h - 140; 
-            mom.x = w / 2;
-        }
-        window.onresize = resize; resize();
-
-        function isInZone(p, z) { return p.x > z.x && p.x < z.x + z.w && p.y > z.y && p.y < z.y + z.h; }
-        
-        function updateUI() {
-            const r = document.getElementById('m-ramen'), p = document.getElementById('m-phone'), c = document.getElementById('m-chat');
-            r.style.opacity = missions.ramen.done ? "1" : "0.3";
-            p.style.opacity = missions.phone.done ? "1" : "0.3";
-            c.style.opacity = missions.chat.done ? "1" : "0.3";
-            if(missions.ramen.done) r.querySelector('.chk').innerText = '✅';
-            if(missions.phone.done) p.querySelector('.chk').innerText = '✅';
-            if(missions.chat.done) c.querySelector('.chk').innerText = '✅';
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            player.x = canvas.width / 2;
+            player.y = canvas.height * 0.8;
+            player.targetX = player.x;
+            player.targetY = player.y;
         }
 
-        function spawnBooks() {
-            books = [];
-            const ss = ['국어', '수학', '영어'];
-            for(let i=0; i<2+level; i++) {
-                books.push({ x: 40+Math.random()*(canvas.width-80), y: 150+Math.random()*(canvas.height-550), s: ss[Math.floor(Math.random()*3)], ok: false });
+        window.addEventListener('resize', resize);
+        resize();
+
+        // 입력 처리 (마우스 & 터치)
+        function updatePosition(e) {
+            if (gameState !== 'PLAYING') return;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            player.targetX = clientX;
+            player.targetY = clientY;
+        }
+
+        window.addEventListener('mousemove', updatePosition);
+        window.addEventListener('touchmove', updatePosition);
+
+        // 적(운석) 클래스
+        class Enemy {
+            constructor() {
+                this.size = Math.random() * 40 + 20;
+                this.x = Math.random() * canvas.width;
+                this.y = -this.size;
+                this.speed = Math.random() * 3 + 2 + (score / 1000);
+                this.rotation = 0;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.1;
+                this.emoji = ['☄️', '🌑', '👾', '💥'][Math.floor(Math.random() * 4)];
+            }
+
+            update() {
+                this.y += this.speed;
+                this.rotation += this.rotationSpeed;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                ctx.font = `${this.size}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.emoji, 0, 0);
+                ctx.restore();
             }
         }
 
-        function openQuiz() {
-            if (bookQuiz.active) return;
-            const b = books.find(i => !i.ok && Math.hypot(player.x - i.x, player.y - i.y) < 40);
-            if (!b) return;
-            b.ok = true; bookQuiz.active = true;
-            if(b.s === '국어') { const q = ['우정','도서관','학교'][Math.floor(Math.random()*3)]; bookQuiz.q = q; bookQuiz.a = q; }
-            else if(b.s === '수학') { const n1 = Math.floor(Math.random()*9)+1, n2 = Math.floor(Math.random()*9)+1; bookQuiz.q = `${n1}+${n2}=?`; bookQuiz.a = (n1+n2).toString(); }
-            else { const e = {'Apple':'사과','Sun':'해'}; const k = Object.keys(e)[Math.floor(Math.random()*2)]; bookQuiz.q = k; bookQuiz.a = e[k]; }
-            document.getElementById('book-pop').style.display = 'block';
-            document.getElementById('q-txt').innerText = bookQuiz.q;
-            document.getElementById('q-input').value = ''; document.getElementById('q-input').focus();
-        }
-
-        document.getElementById('q-btn').onclick = () => {
-            if(document.getElementById('q-input').value.trim() === bookQuiz.a) {
-                time += 10; spawnP(player.x, player.y, '✨');
-                bookQuiz.active = false; document.getElementById('book-pop').style.display = 'none';
-            } else { document.getElementById('q-input').value = ''; }
-        };
-
-        function caught(r) { 
-            const msg = document.getElementById('msg-center');
-            msg.style.opacity = "1"; msg.style.scale = "1";
-            setTimeout(() => { msg.style.opacity = "0"; msg.style.scale = "1.5"; finish(false, r); }, 1000);
-        }
-
-        function start() {
-            state = 'PLAYING'; document.getElementById('start-modal').classList.add('hidden');
-            time = 70; missions.ramen.prog = 0; missions.phone.prog = 0; missions.chat.prog = 0;
-            missions.ramen.done = false; missions.phone.done = false; missions.chat.done = false;
-            player.x = canvas.width/2; player.y = canvas.height-140;
-            spawnBooks(); updateUI();
-            if(window.timer) clearInterval(window.timer);
-            window.timer = setInterval(() => { if(state==='PLAYING'){time--; document.getElementById('time-val').innerText=time; if(time<=0)finish(false,"시간 초과!");}}, 1000);
-            requestAnimationFrame(tick);
-        }
-
-        function finish(ok, r) {
-            state = 'STOPPED'; clearInterval(window.timer);
-            const m = document.getElementById('start-modal'); m.classList.remove('hidden');
-            document.querySelector('#start-modal h1').innerText = ok ? "대성공!" : "걸렸다!";
-            document.querySelector('#start-modal p').innerText = r;
-            const btn = document.getElementById('btn-start'); btn.innerText = ok ? "다음 단계" : "다시 도전";
-            btn.onclick = ok ? () => { level++; start(); } : start;
-        }
-
-        function tick() { if(state!=='PLAYING') return; update(); draw(); requestAnimationFrame(tick); }
-
-        function update() {
-            const now = Date.now();
-            if (!bookQuiz.active) {
-                player.moving = (joyDown || Math.abs(player.vx)>0 || Math.abs(player.vy)>0);
-                player.x += player.vx * player.speed; player.y += player.vy * player.speed;
-            } else { player.moving = false; }
-
-            const speed = 1 + level * 0.15;
-            if(mom.state === 'IDLE') {
-                mom.tAng = (mom.mode === 'LEFT') ? -Math.PI/2.5 : Math.PI/2.5;
-                if(now - mom.timer > 4000/speed) { mom.state = 'WARNING'; mom.timer = now; }
-                if(Math.random()<0.015) mom.mode = mom.mode === 'LEFT' ? 'RIGHT' : 'LEFT';
-            } else if(mom.state === 'WARNING') { mom.tAng = 0; if(now - mom.timer > 1500/speed) { mom.state = 'WATCHING'; mom.timer = now; } }
-            else if(mom.state === 'WATCHING') { mom.tAng = 0; if(now - mom.timer > 2000+level*100) { mom.state = 'IDLE'; mom.timer = now; } }
-            mom.ang += (mom.tAng - mom.ang) * 0.07;
-
-            player.x = Math.max(20, Math.min(canvas.width-20, player.x));
-            player.y = Math.max(20, Math.min(canvas.height-20, player.y));
-
-            if(mom.state === 'WATCHING' && (player.moving || (phoneHold && isInZone(player, zones.phone)))) { caught("엄마가 보고 있었어!"); return; }
-
-            const rIn = isInZone(player, zones.ramen) && !missions.ramen.done;
-            const pIn = isInZone(player, zones.phone) && !missions.phone.done;
-            document.getElementById('ramen-pop').style.display = rIn ? 'block' : 'none';
-            document.getElementById('phone-pop').style.display = pIn ? 'block' : 'none';
-            document.getElementById('btn-action').classList.toggle('hidden', !rIn);
-            document.getElementById('btn-phone').classList.toggle('hidden', !pIn);
-            document.getElementById('ramen-bar').style.width = missions.ramen.prog + '%';
-            document.getElementById('phone-bar').style.width = missions.phone.prog + '%';
-            document.getElementById('phone-txt').innerText = Math.floor(missions.phone.prog) + '%';
-
-            if(pIn && phoneHold) {
-                missions.phone.prog += 0.5;
-                if(Math.random()>0.9) spawnP(player.x, player.y-25, '📱');
-                if(missions.phone.prog >= 100) { missions.phone.done = true; updateUI(); }
+        // 파티클(효과음 대신 시각 효과)
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.size = Math.random() * 5 + 2;
+                this.speedX = (Math.random() - 0.5) * 10;
+                this.speedY = (Math.random() - 0.5) * 10;
+                this.life = 1.0;
             }
-            books.forEach(b => { if(!b.ok && Math.hypot(player.x - b.x, player.y - b.y) < 40) openQuiz(); });
-            if(isInZone(player, zones.chat) && !missions.chat.done) {
-                missions.chat.prog += 0.35;
-                if(Math.random()>0.94) spawnP(npc.x, npc.y-30, '💬');
-                if(missions.chat.prog >= 100) { missions.chat.done = true; updateUI(); }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.life -= 0.02;
             }
-            particles.forEach((p, i) => { p.y += p.vy; p.x += p.vx; p.a -= 0.025; if(p.a <= 0) particles.splice(i, 1); });
-            if(missions.ramen.done && missions.phone.done && missions.chat.done) { if(player.y < 100 && Math.abs(player.x - canvas.width/2) < 40) finish(true, "탈출에 성공했어!"); }
+            draw() {
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
         }
 
-        function draw() {
-            ctx.fillStyle = '#1e140a'; ctx.fillRect(0,0, canvas.width, canvas.height);
-            ctx.strokeStyle = '#2d1e12'; ctx.lineWidth = 1;
-            for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke(); }
-            
-            const rz = zones.ramen; ctx.font = '30px Arial'; ctx.textAlign = 'center'; ctx.fillText('🍜', rz.x + rz.w/2, rz.y + rz.h/2 + 5);
-            const pz = zones.phone; ctx.fillText('📱', pz.x + pz.w/2, pz.y + pz.h/2 + 5);
-            ctx.font = '28px Arial'; ctx.fillText('👧', npc.x, npc.y);
-            if(!missions.chat.done) { ctx.strokeStyle = '#ec4899'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(npc.x, npc.y, 35, -Math.PI/2, -Math.PI/2 + (Math.PI*2 * missions.chat.prog/100)); ctx.stroke(); }
-            books.forEach(b => { if(!b.ok) { ctx.font = '24px Arial'; ctx.fillText('📕', b.x, b.y); ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.font = 'bold 9px Arial'; ctx.fillText(b.s, b.x, b.y + 15); } });
-            particles.forEach(p => { ctx.globalAlpha = p.a; ctx.font = '20px Arial'; ctx.fillText(p.e, p.x, p.y); }); ctx.globalAlpha = 1;
-
-            ctx.save(); ctx.translate(mom.x, mom.y); ctx.rotate(mom.ang + Math.PI/2);
-            let vCol = 'rgba(255, 255, 255, 0.03)'; if(mom.state === 'WARNING') vCol = 'rgba(255, 165, 0, 0.12)'; if(mom.state === 'WATCHING') vCol = 'rgba(255, 0, 0, 0.22)';
-            ctx.fillStyle = vCol; ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0, canvas.height, -mom.view/2, mom.view) ; ctx.fill(); ctx.restore();
-            
-            if(missions.ramen.done && missions.phone.done && missions.chat.done) { ctx.font = '50px Arial'; ctx.fillText('🚪', canvas.width/2, 80); }
-            
-            // 주인공
-            if (kidOk) {
-                try {
-                    ctx.save(); ctx.translate(player.x, player.y); if (player.vx < -0.1) ctx.scale(-1, 1);
-                    ctx.drawImage(imgKid, -player.w/2, -player.h/2, player.w, player.h); ctx.restore();
-                } catch(e) { ctx.font = '32px Arial'; ctx.fillText('👦', player.x, player.y); }
-            } else { ctx.font = '32px Arial'; ctx.fillText('👦', player.x, player.y); }
-            
-            // 엄마
-            renderMomToCanvas(mom.state === 'WATCHING');
-            ctx.save(); ctx.translate(mom.x, mom.y); ctx.rotate(mom.ang);
-            ctx.drawImage(momCanvas, -mom.size/2, -mom.size/2, mom.size, mom.size);
-            ctx.restore();
+        function initGame() {
+            score = 0;
+            enemies = [];
+            particles = [];
+            enemySpawnInterval = 1000;
+            scoreElement.innerText = '0';
+            gameState = 'PLAYING';
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            animate();
         }
 
-        document.getElementById('btn-start').onclick = start;
+        function gameOver() {
+            gameState = 'GAMEOVER';
+            cancelAnimationFrame(animationId);
+            finalScoreElement.innerText = Math.floor(score);
+            gameOverScreen.classList.remove('hidden');
+            
+            // 폭발 효과
+            for(let i=0; i<30; i++) {
+                particles.push(new Particle(player.x, player.y, '#ff5500'));
+            }
+        }
+
+        function animate(timestamp = 0) {
+            if (gameState !== 'PLAYING') {
+                // 게임 오버 상태에서도 파티클은 그려줌
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                particles.forEach((p, i) => {
+                    p.update();
+                    p.draw();
+                    if(p.life <= 0) particles.splice(i, 1);
+                });
+                if(gameState === 'GAMEOVER' && particles.length > 0) {
+                    animationId = requestAnimationFrame(animate);
+                }
+                return;
+            }
+
+            ctx.fillStyle = 'rgba(10, 10, 25, 0.4)'; // 잔상 효과
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 별 배경 (단순하게)
+            if(Math.random() > 0.9) {
+                ctx.fillStyle = 'white';
+                ctx.fillRect(Math.random() * canvas.width, 0, 2, 2);
+            }
+
+            // 플레이어 이동 (부드럽게)
+            player.x += (player.targetX - player.x) * 0.15;
+            player.y += (player.targetY - player.y) * 0.15;
+
+            // 플레이어 그리기
+            ctx.font = `${player.size}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(player.emoji, player.x, player.y);
+
+            // 적 생성
+            if (timestamp - lastEnemyTime > enemySpawnInterval) {
+                enemies.push(new Enemy());
+                lastEnemyTime = timestamp;
+                // 난이도 상승
+                enemySpawnInterval = Math.max(200, 1000 - (score / 50));
+            }
+
+            // 적 업데이트 및 그리기
+            enemies.forEach((enemy, index) => {
+                enemy.update();
+                enemy.draw();
+
+                // 화면 밖으로 나가면 제거
+                if (enemy.y > canvas.height + enemy.size) {
+                    enemies.splice(index, 1);
+                    score += 10;
+                    scoreElement.innerText = Math.floor(score);
+                }
+
+                // 충돌 검사
+                const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+                if (dist < (player.size/2 + enemy.size/2) - 10) {
+                    gameOver();
+                }
+            });
+
+            // 파티클 처리
+            particles.forEach((p, i) => {
+                p.update();
+                p.draw();
+                if(p.life <= 0) particles.splice(i, 1);
+            });
+
+            animationId = requestAnimationFrame(animate);
+        }
+
+        startBtn.addEventListener('click', initGame);
+        restartBtn.addEventListener('click', initGame);
+
+        // 초기 화면 그리기
+        ctx.fillStyle = '#0a0a19';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
     </script>
 </body>
 </html>
